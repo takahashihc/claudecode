@@ -128,7 +128,7 @@ def update_office(o):
                     if sh=="全体":
                         ws.cell(r,9).value=round(ringer["sales"],3); ws.cell(r,16).value=round(ringer["gp"],3)
                     elif sh=="機械":
-                        ws.cell(r,9).value=round(ringer_m["sales"],3); ws.cell(r,16).value=round(ringer_m["gp"],3)
+                        flags.append(f"{o} 機械!{ws.cell(r,9).coordinate}/{ws.cell(r,16).coordinate} 内リンガーハット機械 8月: 空欄（要確認）")
                 if k=="7" and lab.startswith("【参考】大海分"):
                     continue  # 大海分は終了（8月以降は空欄）
                 translate_fill(ws,r)
@@ -242,7 +242,8 @@ def make_jisseki():
         for k in d[key]:
             if "リンガー" in k and "以外" not in k: return d[key][k]
     put(24,(rl(rg,"y2024")["sales"][AUG],rl(rg,"y2025")["sales"][AUG],rl(rg,"plan")["sales"][AUG],round(ringer["sales"],3),rl(rg,"y2024")["gp"][AUG],rl(rg,"y2025")["gp"][AUG],rl(rg,"plan")["gp"][AUG],round(ringer["gp"],3)))
-    put(26,(rl(rgm,"y2024")["sales"][AUG],rl(rgm,"y2025")["sales"][AUG],rl(rgm,"plan")["sales"][AUG],round(ringer_m["sales"],3),rl(rgm,"y2024")["gp"][AUG],rl(rgm,"y2025")["gp"][AUG],rl(rgm,"plan")["gp"][AUG],round(ringer_m["gp"],3)))
+    put(26,(rl(rgm,"y2024")["sales"][AUG],rl(rgm,"y2025")["sales"][AUG],rl(rgm,"plan")["sales"][AUG],None,rl(rgm,"y2024")["gp"][AUG],rl(rgm,"y2025")["gp"][AUG],rl(rgm,"plan")["gp"][AUG],None))
+    flags.append("第51期8月実績 8月!L26/S26 リンガーハット機械 8月実績: 空欄（要確認）")
     put(30,tot("境港","全体")); put(33,tot("境港","機械")); put(34,per("境港","0930")); put(35,per("境港","0918"))
     put(41,tot("水産部","全体")); 
     v1=per("水産部","0104"); v2=per("水産部","0106"); put(43,tuple(a+b for a,b in zip(v1,v2)))
