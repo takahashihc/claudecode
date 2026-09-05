@@ -16,10 +16,10 @@ for r in range(2,raw.max_row+1):
     a=agg.setdefault(key,{"codes":[],"name":raw.cell(r,2).value,"v":[0]*6})
     a["codes"].append(code)
     for i in range(6): a["v"][i]+=float(raw.cell(r,3+i).value or 0)
-rows=sorted(agg.values(),key=lambda a:(-a["v"][0],a["codes"][0]))
+rows=sorted(agg.values(),key=lambda a:(-(a["v"][3]+a["v"][4]+a["v"][5]),a["codes"][0]))
 wb=openpyxl.load_workbook(S+"2607仕入先実績_集計.xlsx"); ws=wb.active
 ws.delete_rows(4,ws.max_row-3)
-ws["A1"]="2026年8月　仕入先別実績（債務部門統合・当月仕入金額順）"
+ws["A1"]="2026年8月　仕入先別実績（債務部門統合・累計純仕入額順）"
 r=4
 for a in rows:
     v=a["v"]; vals=["/".join(a["codes"]),a["name"],v[0],v[1],v[2],v[0]+v[1]+v[2],v[3],v[4],v[5],v[3]+v[4]+v[5],len(a["codes"])]
@@ -63,7 +63,7 @@ for code in sorted(groups):
     for c in range(1,31): ws.cell(r,c)._style=copy.copy(sty_group[c-1])
     r+=1
     tot=[0]*12
-    for v in grp["rows"]:
+    for v in sorted(grp["rows"],key=lambda v:-(v[19] or 0)):
         E,F,G,H,I,J,K,Lg,M,N,O,P,Q,R,Sx,T,U,V=[(x or 0) for x in v[4:22]]
         m=block(K,Lg,H,I,E,F,M,J,G); cum=block(T,U,Q,R,N,O,V,Sx,P)
         vals=[code,grp["name"],str(v[0]),v[1]]+m+cum
