@@ -5,7 +5,6 @@
 import openpyxl
 from openpyxl.styles import Font, PatternFill, Border, Side, Alignment
 from openpyxl.utils import get_column_letter as L
-from openpyxl.worksheet.properties import Outline
 from openpyxl.comments import Comment
 from collections import OrderedDict
 
@@ -24,6 +23,9 @@ DEPT_CODES = OrderedDict([
     ('石見',           ['0011', '0012', '0013', '0014', '0015', '0016', '0017', '0018',
                         '0019', '0020', '0917']),
 ])
+# 担当者名の読み替え（0918 は足立秀一氏退職のため「海外」として扱う）
+RENAME = {'0918': '海外'}
+
 # 全体シートで「部門」として表示する主部門（0017 鮮魚は参考ファイル同様 水産部X と 石見 の両方に掲載、主部門は水産部X）
 PRIMARY_DEPT = {}
 for d, cs in DEPT_CODES.items():
@@ -79,20 +81,19 @@ rows.sort(key=lambda r: (r['tcode'], r['code']))
 master = OrderedDict()
 for r in rows:
     master.setdefault(r['tcode'], r['tname'])
+for _k, _v in RENAME.items():
+    if _k in master:
+        master[_k] = _v
+master_active = master
 MASTER_ROWS = 100  # マスタシートの参照範囲（新担当者追加用の余白込み）
 
 wb = openpyxl.Workbook()
 wb.remove(wb.active)
 
-# 部門別シートの最終データ行（集計行込み）を事前計算し、参照範囲を限定する
+# 部門別シートの最終データ行を事前計算し、参照範囲を限定する
 DEPT_LAST = {}
 for _d, _cs in DEPT_CODES.items():
-    _n = 0
-    for _c in _cs:
-        _k = sum(1 for x in rows if x['tcode'] == _c)
-        if _k:
-            _n += _k + 1
-    DEPT_LAST[_d] = _n + 1
+    DEPT_LAST[_d] = 1 + sum(1 for x in rows if x['tcode'] in _cs)
 
 
 def style_header(ws, ncol, extra=None):
@@ -118,7 +119,7 @@ def write_data_row(ws, r, rec, new_code_formula=None):
     ws.cell(r, 1, rec['code']).number_format = '@'
     ws.cell(r, 2, rec['name'])
     ws.cell(r, 3, rec['tcode']).number_format = '@'
-    ws.cell(r, 4, rec['tname'])
+    ws.cell(r, 4, RENAME.get(rec['tcode'], rec['tname']))
     e = ws.cell(r, 5)
     if new_code_formula is None:
         e.fill = INPUT_FILL
@@ -189,14 +190,12 @@ for dept, codes in DEPT_CODES.items():
         ws.cell(1, i, h)
     style_header(ws, 34)
     set_widths(ws)
-    ws.sheet_properties.outlinePr = Outline(summaryBelow=True, summaryRight=True)
     r = 2
     first_data = 2
     for code in codes:
         recs = [x for x in rows if x['tcode'] == code]
         if not recs:
             continue
-        g_first = r
         for rec in recs:
             if dept == '石見' and code == '0017':
                 # 水産部X シート側の入力を参照（重複掲載のため二重入力を防ぐ）
@@ -206,23 +205,7 @@ for dept, codes in DEPT_CODES.items():
                 write_data_row(ws, r, rec, new_code_formula=f)
             else:
                 write_data_row(ws, r, rec)
-            ws.row_dimensions[r].outlineLevel = 2
             r += 1
-        g_last = r - 1
-        # 集計行
-        ws.cell(r, 3, f'{code} 集計')
-        ws.cell(r, 4, master[code])
-        for c in NUM_COLS:
-            ws.cell(r, c, f'=SUBTOTAL(9,{L(c)}{g_first}:{L(c)}{g_last})')
-        for c in range(1, 35):
-            cell = ws.cell(r, c)
-            cell.font = FONT_B
-            cell.fill = SUB_FILL
-            cell.border = BORDER
-            if c >= 7:
-                cell.number_format = NUMFMT
-        ws.row_dimensions[r].outlineLevel = 1
-        r += 1
     last_data = r - 1
     ws.cell(r, 3, '総計')
     for c in NUM_COLS:
@@ -235,6 +218,7 @@ for dept, codes in DEPT_CODES.items():
         if c >= 7:
             cell.number_format = NUMFMT
     ws.freeze_panes = 'G2'
+    ws.auto_filter.ref = f'A1:AH{last_data}'
     ws.print_area = f'A1:AH{r}'
     ws['E1'].comment = Comment('2026年10月以降の担当者コードをここに入力してください（黄色セル）。F列の氏名は担当者マスタから自動表示されます。', 'Claude')
     dept_ranges[dept] = (first_data, last_data)
@@ -250,7 +234,7 @@ wm.column_dimensions['B'].width = 18
 wm.column_dimensions['C'].width = 18
 wm.column_dimensions['D'].width = 40
 r = 2
-for code, name in master.items():
+for code, name in master_active.items():
     wm.cell(r, 1, code).number_format = '@'
     wm.cell(r, 2, name)
     wm.cell(r, 3, PRIMARY_DEPT[code])
@@ -271,95 +255,76 @@ for rr in range(1, MASTER_ROWS + 2):
             cell.font = FONT
 wm.freeze_panes = 'A2'
 
-# ================= 担当者別集計 =================
+# ================= 担当者別集計（新担当者コード基準） =================
 wsum = wb.create_sheet('担当者別集計')
-SUM_HDR = ['担当者コード', '担当者名', '部門',
-           '現担当 得意先数', '現担当 前年度売上', '現担当 前年度粗利', '現担当 今年度売上', '現担当 今年度粗利',
-           '新担当 得意先数', '新担当 前年度売上', '新担当 前年度粗利', '新担当 今年度売上', '新担当 今年度粗利']
+SUM_HDR = ['新担当者コード', '新担当者名', '部門', '得意先数', '前年度売上', '前年度粗利', '今年度売上', '今年度粗利']
 for i, h in enumerate(SUM_HDR, 1):
     wsum.cell(1, i, h)
 style_header(wsum, len(SUM_HDR))
-wsum.column_dimensions['A'].width = 14
+wsum.column_dimensions['A'].width = 15
 wsum.column_dimensions['B'].width = 18
 wsum.column_dimensions['C'].width = 18
-for c in range(4, 14):
+for c in range(4, 9):
     wsum.column_dimensions[L(c)].width = 15
-AR = f'全体!$A$2:$A${last_all}'
-CR = f'全体!$C$2:$C${last_all}'
 ER = f'全体!$E$2:$E${last_all}'
 MR = f'全体!$M$2:$M${last_all}'
 TR = f'全体!$T$2:$T${last_all}'
 AAR = f'全体!$AA$2:$AA${last_all}'
 AHR = f'全体!$AH$2:$AH${last_all}'
+CNTFMT = '#,##0_ ;-#,##0_ ;"-"_ '
 for i in range(MASTER_ROWS):
     r = i + 2
     m = i + 2  # 担当者マスタの行
     wsum.cell(r, 1, f'=IF(担当者マスタ!A{m}="","",担当者マスタ!A{m})').number_format = '@'
     wsum.cell(r, 2, f'=IF(担当者マスタ!A{m}="","",担当者マスタ!B{m})')
     wsum.cell(r, 3, f'=IF(担当者マスタ!A{m}="","",担当者マスタ!C{m})')
-    wsum.cell(r, 4, f'=IF($A{r}="","",COUNTIF({CR},$A{r}))')
-    wsum.cell(r, 5, f'=IF($A{r}="","",SUMIFS({MR},{CR},$A{r}))')
-    wsum.cell(r, 6, f'=IF($A{r}="","",SUMIFS({TR},{CR},$A{r}))')
-    wsum.cell(r, 7, f'=IF($A{r}="","",SUMIFS({AAR},{CR},$A{r}))')
-    wsum.cell(r, 8, f'=IF($A{r}="","",SUMIFS({AHR},{CR},$A{r}))')
-    wsum.cell(r, 9, f'=IF($A{r}="","",COUNTIF({ER},$A{r}))')
-    wsum.cell(r, 10, f'=IF($A{r}="","",SUMIFS({MR},{ER},$A{r}))')
-    wsum.cell(r, 11, f'=IF($A{r}="","",SUMIFS({TR},{ER},$A{r}))')
-    wsum.cell(r, 12, f'=IF($A{r}="","",SUMIFS({AAR},{ER},$A{r}))')
-    wsum.cell(r, 13, f'=IF($A{r}="","",SUMIFS({AHR},{ER},$A{r}))')
-    for c in range(1, 14):
+    wsum.cell(r, 4, f'=IF($A{r}="","",COUNTIF({ER},$A{r}))')
+    wsum.cell(r, 5, f'=IF($A{r}="","",SUMIFS({MR},{ER},$A{r}))')
+    wsum.cell(r, 6, f'=IF($A{r}="","",SUMIFS({TR},{ER},$A{r}))')
+    wsum.cell(r, 7, f'=IF($A{r}="","",SUMIFS({AAR},{ER},$A{r}))')
+    wsum.cell(r, 8, f'=IF($A{r}="","",SUMIFS({AHR},{ER},$A{r}))')
+    for c in range(1, 9):
         cell = wsum.cell(r, c)
         cell.font = FONT
         cell.border = BORDER
-        if c >= 5 and c != 9:
-            cell.number_format = NUMFMT
-        elif c in (4, 9):
-            cell.number_format = '#,##0_ ;-#,##0_ ;"-"_ '
+        cell.number_format = NUMFMT if c >= 5 else (CNTFMT if c == 4 else cell.number_format)
 last_sum = MASTER_ROWS + 1
 r = last_sum + 1
 wsum.cell(r, 1, '未設定')
 wsum.cell(r, 2, '（新担当者コード空欄）')
-wsum.cell(r, 9, f'=COUNTBLANK({ER})')
-wsum.cell(r, 10, f'=SUMIFS({MR},{ER},"")')
-wsum.cell(r, 11, f'=SUMIFS({TR},{ER},"")')
-wsum.cell(r, 12, f'=SUMIFS({AAR},{ER},"")')
-wsum.cell(r, 13, f'=SUMIFS({AHR},{ER},"")')
-for c in range(1, 14):
+wsum.cell(r, 4, f'=COUNTBLANK({ER})')
+wsum.cell(r, 5, f'=SUMIFS({MR},{ER},"")')
+wsum.cell(r, 6, f'=SUMIFS({TR},{ER},"")')
+wsum.cell(r, 7, f'=SUMIFS({AAR},{ER},"")')
+wsum.cell(r, 8, f'=SUMIFS({AHR},{ER},"")')
+for c in range(1, 9):
     cell = wsum.cell(r, c)
     cell.font = FONT
     cell.fill = SUB_FILL
     cell.border = BORDER
-    cell.number_format = NUMFMT if c >= 10 else '#,##0_ ;-#,##0_ ;"-"_ '
+    cell.number_format = NUMFMT if c >= 5 else CNTFMT
 r += 1
 wsum.cell(r, 1, '総計')
-wsum.cell(r, 4, f'=SUM(D2:D{last_sum})')
-for c in range(5, 9):
-    wsum.cell(r, c, f'=SUM({L(c)}2:{L(c)}{last_sum})')
-wsum.cell(r, 9, f'=SUM(I2:I{last_sum + 1})')
-for c in range(10, 14):
+for c in range(4, 9):
     wsum.cell(r, c, f'=SUM({L(c)}2:{L(c)}{last_sum + 1})')
-for c in range(1, 14):
+for c in range(1, 9):
     cell = wsum.cell(r, c)
     cell.font = FONT_B
     cell.fill = TOTAL_FILL
     cell.border = BORDER
-    cell.number_format = NUMFMT if (c >= 5 and c != 9) else '#,##0_ ;-#,##0_ ;"-"_ '
+    cell.number_format = NUMFMT if c >= 5 else CNTFMT
 r += 1
 wsum.cell(r, 1, '全体シート総計（検算）')
+wsum.cell(r, 4, last_all - 1)
 wsum.cell(r, 5, f'=全体!M{tr}')
 wsum.cell(r, 6, f'=全体!T{tr}')
 wsum.cell(r, 7, f'=全体!AA{tr}')
 wsum.cell(r, 8, f'=全体!AH{tr}')
-wsum.cell(r, 10, f'=全体!M{tr}')
-wsum.cell(r, 11, f'=全体!T{tr}')
-wsum.cell(r, 12, f'=全体!AA{tr}')
-wsum.cell(r, 13, f'=全体!AH{tr}')
-for c in range(1, 14):
+for c in range(1, 9):
     cell = wsum.cell(r, c)
     cell.font = FONT_GREEN
     cell.border = BORDER
-    if c >= 5 and c != 9:
-        cell.number_format = NUMFMT
+    cell.number_format = NUMFMT if c >= 5 else CNTFMT
 wsum.freeze_panes = 'D2'
 check_row = r
 
@@ -373,14 +338,14 @@ lines = [
     ('■ 元データ', True),
     ('・「20260905 1頁」シート（第52期上期担当者ファイル）の907得意先を、第51期上期担当者コードファイルと同じ構成で「全体」と部門別5シートに分割しています。', False),
     ('・前年度 = 第51期上期（2024/10〜2025/03）、今年度 = 第52期上期（2025/10〜2026/03）。金額の単位は元データのまま（千円）です。', False),
-    ('・各シートは 担当者コード → 得意先コード の順に並んでいます。合計・集計・総計はすべて数式です。', False),
+    ('・各シートは 担当者コード → 得意先コード の順に並んでいます。合計・総計はすべて数式です。現担当者ごとの集計は設けていません（新担当者コードで集計します）。', False),
     ('', False),
     ('■ 2026年10月以降の担当者の設定方法', True),
     ('1. 各部門シート（水産部X／鳥栖・静岡・東京／松江・境港／下関／石見）の E列「新担当者コード」（黄色セル）に、新しい担当者コードを入力します。', False),
     ('2. F列「新担当者」は「担当者マスタ」シートから自動表示されます。「※マスタ未登録」と出た場合は担当者マスタにコードを追加してください。', False),
     ('3. 新しい担当者（新規コード）は「担当者マスタ」シートの黄色の空行に コード・氏名・部門 を追加します。', False),
     ('4. 「全体」シートの E列・F列は部門別シートの入力を自動で反映します（全体シートでは入力不要）。', False),
-    ('5. 「担当者別集計」シートで、現担当者ベース／新担当者ベースの得意先数・売上・粗利の合計を確認できます。「未設定」行が 0 になれば全得意先の割当完了です。', False),
+    ('5. 「担当者別集計」シートで、新担当者コードごとの得意先数・売上・粗利の合計を確認できます。「未設定」行が 0 になれば全得意先の割当完了です。', False),
     ('', False),
     ('■ 部門と担当者コードの対応（第51期ファイルの部門別シート構成を踏襲）', True),
 ]
@@ -388,10 +353,11 @@ for d, cs in DEPT_CODES.items():
     lines.append((f'・{d}：' + '、'.join(f'{c} {master[c]}' for c in cs if c in master), False))
 lines += [
     ('・0028 自治体（下関市）と 0930 自治体（境港市）は第52期で新たに登場したコードのため、それぞれ 下関・松江・境港 に配置しています。', False),
+    ('・0918 は足立秀一氏の退職に伴い、担当者名を「海外」に変更しています（担当者マスタも「0918 海外」）。', False),
     ('・0017 鮮魚 は第51期ファイルと同様に 水産部X と 石見 の両方に掲載しています（全体シートでは1件のみ・主部門は水産部X）。石見シート側の新担当者コードは水産部X の入力を参照します。', False),
     ('', False),
     ('■ セルの色', True),
-    ('・黄色 = 入力欄（部門別シートのE列、担当者マスタの空行）　・緑文字 = 他シート参照　・灰色 = 集計／総計行', False),
+    ('・黄色 = 入力欄（部門別シートのE列、担当者マスタの空行）　・緑文字 = 他シート参照　・灰色 = 総計行', False),
 ]
 for i, (t, b) in enumerate(lines, 1):
     c = wi.cell(i, 2, t)
