@@ -126,6 +126,12 @@ def update_office(o):
                     continue
                 translate_fill(ws,r)
     if o=="広域":
+        for sh in ["全体","機械","包装資材"]:
+            ws=wb[sh]
+            for r in range(1,ws.max_row+1):
+                c=str(ws.cell(r,3).value or "")
+                if c.startswith("0552"): ws.cell(r,4).value="馬場部長（東京）"
+                elif c.startswith("0550"): ws.cell(r,4).value="馬場所長（東京）"
         ws=wb["キョウワ"]; secs=sec_start(ws); order=sorted(secs.items(),key=lambda x:x[1])
         for i,(k,st) in enumerate(order):
             en=order[i+1][1] if i+1<len(order) else ws.max_row+1
@@ -141,7 +147,7 @@ for o in files: update_office(o)
 NAME2CODE={("石見","佐々木課長"):"0011",("石見","川上"):"0012",("石見","三浦"):"0013",("石見","木村課長"):"0014",("石見","その他"):"0019",("石見","自治体"):"0020",
  ("下関","高橋所長"):"0021",("下関","東野"):"0024",("下関","橋本課長"):"0025",("下関","井上課長"):"0026",("下関","中国"):"0027",("下関","自治体"):"0028",("下関","その他"):"0029",
  ("松江","飯塚主任"):"0032",("松江","前田課長代理"):"0033",("松江","原田"):"0034",("松江","自治体"):"0035",("松江","その他"):"0039",
- ("広域","馬場部長（鳥栖）"):"0042",("広域","ペーパーハグ"):"0045",("広域","角田"):"0046",("広域","馬場部長（静岡）"):"0047",("広域","馬場部長（東京）"):"0550",("広域","高橋"):"0552",
+ ("広域","馬場部長（鳥栖）"):"0042",("広域","ペーパーハグ"):"0045",("広域","角田"):"0046",("広域","馬場部長（静岡）"):"0047",("広域","馬場所長（東京）"):"0550",("広域","馬場部長（東京）"):"0552",
  ("境港","西岡"):"0903",("境港","足立次長"):"0904",("境港","藤波課長"):"0909",("境港","足立課長"):"0910",("境港","川邊主任"):"0911",("境港","白根主任"):"0914",("境港","海外"):"0918",("境港","その他"):"0919",("境港","自治体"):"0930"}
 OFFICE_ROWS={"石見":(7,29),"下関":(30,55),"松江":(56,75),"広域":(76,99),"境港":(100,131)}
 def kaigi_values(o,code,sh,months):
@@ -189,8 +195,18 @@ def fill_kaigi_sheet(ws,months,label_m,label_h):
                  "M":sum(kyowa("y2024","gp",m) for m in months),"N":sum(kyowa("y2025","gp",m) for m in months),"O":sum(kyowa("plan","gp",m) for m in months),"P":sum(kyowa("act","gp",m) for m in months)})
         elif d and cur and d not in ("営業","自治体","中国事業","海外","【参考】馬場部長合計"):
             flags.append(f"営業会議資料 row {r}: 未対応ラベル {d}")
+def fix_baba(ws):
+    import re as _re
+    ws["D91"]="馬場部長（東京）"; ws["D88"]="馬場所長（東京）"
+    for c in range(6,24):
+        for r,add in [(94,91),(96,93)]:
+            v=ws.cell(r,c).value
+            if isinstance(v,str) and _re.fullmatch(r"=([A-Z]+)\d+\+\1\d+\+\1\d+",v):
+                col=_re.match(r"=([A-Z]+)",v).group(1); ws.cell(r,c).value=v+f"+{col}{add}"
+    ws["J94"]="=I94-H94"
 def make_kaigi():
     wb=openpyxl.load_workbook(S+"【営業会議資料】令和8年7月実績.xlsx")
+    fix_baba(wb["単月"]); fix_baba(wb["下期累計"])
     fill_kaigi_sheet(wb["単月"],[AUG],"8月","1．単月実績")
     fill_kaigi_sheet(wb["下期累計"],list(range(0,AUG+1)),"4〜8月","2．下期累計実績（4〜8月）")
     wb.save(OUT+"【営業会議資料】令和8年8月実績.xlsx"); print("saved kaigi")
