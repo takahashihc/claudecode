@@ -26,7 +26,15 @@ for r in range(2,wc.max_row+1):
     n=str(wc.cell(r,2).value or "")
     if "ﾘﾝｶﾞｰ" in n or "リンガー" in n:
         ringer["sales"]+=(wc.cell(r,11).value or 0)/1000; ringer["gp"]+=(wc.cell(r,12).value or 0)/1000
-print("Ringer Aug:",ringer)
+# Ringer Hut machine share from 売上全明細 (with 分類コード1 column)
+ringer_m={"sales":0.0,"gp":0.0}
+if os.path.exists(S+"upload_2608.xlsx"):
+    wd=openpyxl.load_workbook(S+"upload_2608.xlsx",read_only=True,data_only=True).worksheets[0]
+    for row in wd.iter_rows(min_row=2,values_only=True):
+        n=str(row[2] or "")
+        if row[0] is not None and str(row[14])=="08" and ("ﾘﾝｶﾞｰ" in n or "リンガー" in n):
+            ringer_m["sales"]+=float(row[10] or 0)/1000; ringer_m["gp"]+=float(row[13] or 0)/1000
+print("Ringer Aug:",ringer,"machine:",ringer_m)
 # ---------------- office data model (from formulas-evaluated cached values)
 SEC_KEYS={"1":"y2024","2":"y2025","4":"plan","7":"act"}
 def sec_start(ws):
@@ -120,10 +128,9 @@ def update_office(o):
                     if sh=="全体":
                         ws.cell(r,9).value=round(ringer["sales"],3); ws.cell(r,16).value=round(ringer["gp"],3)
                     elif sh=="機械":
-                        flags.append(f"{o} 機械!{ws.cell(r,9).coordinate}/{ws.cell(r,16).coordinate} 内リンガーハット機械 8月: 機械分得意先別データ未提供のため空欄")
+                        ws.cell(r,9).value=round(ringer_m["sales"],3); ws.cell(r,16).value=round(ringer_m["gp"],3)
                 if k=="7" and lab.startswith("【参考】大海分"):
-                    flags.append(f"{o} {sh}!{ws.cell(r,9).coordinate} 【参考】大海分 8月: 算出元不明のため空欄")
-                    continue
+                    continue  # 大海分は終了（8月以降は空欄）
                 translate_fill(ws,r)
     if o=="広域":
         for sh in ["全体","機械","包装資材"]:
@@ -235,8 +242,7 @@ def make_jisseki():
         for k in d[key]:
             if "リンガー" in k and "以外" not in k: return d[key][k]
     put(24,(rl(rg,"y2024")["sales"][AUG],rl(rg,"y2025")["sales"][AUG],rl(rg,"plan")["sales"][AUG],round(ringer["sales"],3),rl(rg,"y2024")["gp"][AUG],rl(rg,"y2025")["gp"][AUG],rl(rg,"plan")["gp"][AUG],round(ringer["gp"],3)))
-    put(26,(rl(rgm,"y2024")["sales"][AUG],rl(rgm,"y2025")["sales"][AUG],rl(rgm,"plan")["sales"][AUG],None,rl(rgm,"y2024")["gp"][AUG],rl(rgm,"y2025")["gp"][AUG],rl(rgm,"plan")["gp"][AUG],None))
-    flags.append("第51期8月実績 8月!L26/S26 リンガーハット機械 8月実績: 機械分得意先別データ未提供のため空欄")
+    put(26,(rl(rgm,"y2024")["sales"][AUG],rl(rgm,"y2025")["sales"][AUG],rl(rgm,"plan")["sales"][AUG],round(ringer_m["sales"],3),rl(rgm,"y2024")["gp"][AUG],rl(rgm,"y2025")["gp"][AUG],rl(rgm,"plan")["gp"][AUG],round(ringer_m["gp"],3)))
     put(30,tot("境港","全体")); put(33,tot("境港","機械")); put(34,per("境港","0930")); put(35,per("境港","0918"))
     put(41,tot("水産部","全体")); 
     v1=per("水産部","0104"); v2=per("水産部","0106"); put(43,tuple(a+b for a,b in zip(v1,v2)))
