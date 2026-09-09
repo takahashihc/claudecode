@@ -168,8 +168,12 @@ Deno.serve(async (req: Request) => {
   }
 
   const body = await req.text();
-  if (!(await verifySignature(body, req.headers.get("x-line-signature")))) {
-    console.warn("invalid signature");
+  const signature = req.headers.get("x-line-signature");
+  if (!(await verifySignature(body, signature))) {
+    // 値は出さず、原因の切り分けに必要な有無だけを記録する
+    console.warn(
+      `invalid signature (secret configured: ${channelSecret ? "yes" : "no"}, header present: ${signature ? "yes" : "no"}, body bytes: ${body.length})`,
+    );
     return new Response("invalid signature", { status: 401 });
   }
 
