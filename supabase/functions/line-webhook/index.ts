@@ -12,6 +12,28 @@ import { createClient } from "@supabase/supabase-js";
 const BUCKET = "line-catch-reports";
 const TABLE = "line_catch_reports";
 const SIGNED_URL_TTL_SEC = 60 * 60 * 24 * 7; // 7日
+const MAX_INLINE_BYTES = 6 * 1024 * 1024; // base64 をDBに置く上限
+const INLINE_RETENTION_DAYS = 7;
+
+function toBase64(bytes: Uint8Array): string {
+  let bin = "";
+  const chunk = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunk) {
+    bin += String.fromCharCode(...bytes.subarray(i, i + chunk));
+  }
+  return btoa(bin);
+}
+
+// 7日を過ぎた行の base64 を破棄して DB 容量を抑える
+async function pruneInlineContent(): Promise<void> {
+  const cutoff = new Date(Date.now() - INLINE_RETENTION_DAYS * 86400_000).toISOString();
+  const { error } = await supabase
+    .from(TABLE)
+    .update({ content_base64: null })
+    .lt("line_timestamp", cutoff)
+    .not("content_base64", "is", null);
+  if (error) console.error("prune failed", error);
+}
 
 const channelSecret = Deno.env.get("LINE_CHANNEL_SECRET") ?? "";
 const accessToken = Deno.env.get("LINE_CHANNEL_ACCESS_TOKEN") ?? "";
@@ -151,6 +173,11 @@ async function handleEvent(ev: LineEvent): Promise<void> {
         const { data: signed } = await supabase.storage.from(BUCKET).createSignedUrl(path, SIGNED_URL_TTL_SEC);
         row.signed_url = signed?.signedUrl ?? null;
       }
+      // SQL 経由で中身を読めるよう base64 も保持する（大きすぎるものは除外）
+      row.content_bytes = content.bytes.byteLength;
+      if (content.bytes.byteLength <= MAX_INLINE_BYTES) {
+        row.content_base64 = toBase64(content.bytes);
+      }
     }
   }
 
@@ -185,7 +212,7 @@ Deno.serve(async (req: Request) => {
   }
 
   // LINE はレスポンスを待つため、保存処理はバックグラウンドで続行して即 200 を返す
-  const work = Promise.allSettled(events.map(handleEvent)).then((results) => {
+  const work = Promise.allSettled([...events.map(handleEvent), pruneInlineContent()]).then((results) => {
     for (const r of results) if (r.status === "rejected") console.error("event failed", r.reason);
   });
   // deno-lint-ignore no-explicit-any
