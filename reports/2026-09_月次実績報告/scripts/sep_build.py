@@ -1,4 +1,6 @@
 import json, copy, sys
+import copy as _copy
+from pptx.util import Emu
 from pptx import Presentation
 from pptx.chart.data import CategoryChartData
 from pptx.dml.color import RGBColor
@@ -16,6 +18,8 @@ def yoy(o,m,p): return pct(get(o,m,p,"act"),get(o,m,p,"prior"))
 def vsp(o,m,p): return pct(get(o,m,p,"act"),get(o,m,p,"plan"))
 def rate(o,p,k="act"): return pct(get(o,"gp",p,k),get(o,"sales",p,k))
 T="合計"
+T6="タカハシ包装"   # 6営業所・部（キョウワを含まない）
+O[T6]={m:{p:{k:sum(O[o][m][p][k] for o in OFF[:6]) for k in ["act","plan","prior"]} for p in ["m","h2","ytd"]} for m in ["sales","gp"]}
 # ---------- key figures
 m_gp=get(T,"gp","m","act"); m_sa=get(T,"sales","m","act")
 h_gp=get(T,"gp","h2","act"); h_sa=get(T,"sales","h2","act")
@@ -58,6 +62,8 @@ def ratio_color(v):
     v=round(v,1)
     return "1A6E1A" if v>=100 else ("C55A11" if v>=90 else "C0392B")
 def shapes_by_name(slide): return {sh.name:sh for sh in slide.shapes}
+def slide_shapes_cache(slide): return list(slide.shapes)
+from pptx.util import Pt
 prs=Presentation(S+"work/令和8年8月実績報告.pptx")
 sl=prs.slides
 FOOT="株式会社タカハシ包装センター | 令和8年9月実績"
@@ -65,8 +71,8 @@ tr=D["trend"]
 # ---------- slide 1 (cover)
 s=shapes_by_name(sl[0])
 set_text(s["TextBox 3"],"令和8年9月　月次実績報告")
-set_text(s["TextBox 4"],"第51期下期 9月実績（下期6ヶ月目・第51期通期確定）　～粗利益額を主軸とした分析～")
-set_text(s["TextBox 7"],f"粗利益額: 9月 {f0(m_gp)}千円（前期比{p1(yoy(T,'gp','m'))}・計画比{p1(vsp(T,'gp','m'))}）")
+set_text(s["TextBox 4"],"第51期下期 9月実績（第51期通期確定）　～粗利益額を主軸とした分析～")
+set_text(s["TextBox 7"],f"粗利益額（キョウワ含む）: 9月 {f0(m_gp)}千円（前期比{p1(yoy(T,'gp','m'))}・計画比{p1(vsp(T,'gp','m'))}）")
 set_text(s["TextBox 8"],f"・ 第51期通期は売上{p1(yoy(T,'sales','ytd'))}・粗利{p1(yoy(T,'gp','ytd'))}（計画比{p1(vsp(T,'gp','ytd'))}）で増収増益着地。下期粗利は前期比{p1(yoy(T,'gp','h2'))}")
 set_text(s["TextBox 9"],f"・ 9月は境港{sgn(gpdiff['境港'])}（前期機械大口の反動）を {joinc(plus,3)} が吸収し増益")
 set_text(s["TextBox 11"],"【警戒】境港の通期減益と水産部・キョウワの粗利率低下")
@@ -87,19 +93,68 @@ cards=[("TextBox 8","TextBox 9","TextBox 11","9月 粗利益額",f0(m_gp),f"前�
        ("TextBox 56","TextBox 57","TextBox 59","通期 粗利率",f"{rate(T,'ytd'):.1f}",f"前期 {p1(rate(T,'ytd','prior'))} → 今期")]
 for a,b,c,t1,t2,t3 in cards:
     set_text(s[a],t1); set_text(s[b],t2); set_text(s[c],t3)
-set_text(s["TextBox 3"],"3期間サマリー（単位: 千円）　※粗利益額を主指標／合計は6営業所＋キョウワ／通期＝第51期（令和7年10月〜令和8年9月）")
+# 各カード下段: タカハシ包装のみ（キョウワ除く）
+def tk(m,p): return O[T6][m][p]
+sub=[]
+for p in ["m","h2","ytd"]:
+    g=tk("gp",p); sa=tk("sales",p)
+    sub.append(f"タカハシ包装のみ {f0(g['act'])}（前期比{p1(pct(g['act'],g['prior']))}）")
+    sub.append(f"タカハシ包装のみ {f0(sa['act'])}（前期比{p1(pct(sa['act'],sa['prior']))}）")
+    sub.append(f"タカハシ包装のみ {p1(pct(g['act'],sa['act']))}（前期{p1(pct(g['prior'],sa['prior']))}）")
+for (a,b,c,t1,t2,t3),txt in zip(cards,sub):
+    src=s[c]; el=_copy.deepcopy(src._element); src._element.getparent().append(el)
+    from pptx.shapes.autoshape import Shape
+    nb=[x for x in slide_shapes_cache(sl[1]) if x._element is el][0]
+    nb.left=s[b].left-Emu(int(0.06*914400)); nb.width=Emu(int(2.72*914400)); nb.top=src.top+Emu(int(0.19*914400)); nb.height=Emu(int(0.2*914400))
+    set_text(nb,txt)
+    for r in nb.text_frame.paragraphs[0].runs: r.font.size=Pt(7.5)
+set_text(s["TextBox 3"],"3期間サマリー（単位: 千円）　※粗利益額を主指標／上段＝タカハシ包装＋キョウワ、下段＝タカハシ包装のみ／通期＝第51期")
 # ---------- slides 3-5 (tables)
 names={"石見":"石見営業所","下関":"下関営業所","松江":"松江営業所","広域":"広域営業部","境港":"境港営業所","水産部":"水産部（計）","キョウワ":"キョウワ"}
+import copy as _copy
+from pptx.util import Emu
 def fill_table(slide,period):
-    t=[sh for sh in slide.shapes if sh.has_table][0].table
-    for ri,o in enumerate(OFF+[T],start=1):
-        total=(o==T)
+    gf=[sh for sh in slide.shapes if sh.has_table][0]; t=gf.table; tbl=t._tbl
+    if len(tbl.tr_lst)==9:   # 合計行(最終行)の書式を複製し、水産部の次に「タカハシ包装合計」行を追加
+        newtr=_copy.deepcopy(tbl.tr_lst[8]); tbl.tr_lst[7].addprevious(newtr)
+    if len(tbl.tblGrid.gridCol_lst)==8:   # 前期比・計画比の右に差額列を追加（売上・粗利とも）
+        grid=tbl.tblGrid.gridCol_lst
+        for src_i in (7,4,3,2):   # 後ろから挿入して添字ずれを避ける: 粗利計画比,粗利前期比... 
+            pass
+        def dup(tr_i,after_i):
+            for tr in tbl.tr_lst:
+                tcs=tr.tc_lst; n=_copy.deepcopy(tcs[after_i]); tcs[after_i].addnext(n)
+        # 元の列: 0営業所 1売上 2前期比 3計画比 4粗利 5前期比 6計画比 7粗利率
+        for after_i in (6,5,3,2):   # 後ろから: 粗利計画比→粗利前期比→売上計画比→売上前期比 の右に複製
+            dup(None,after_i)
+            g=_copy.deepcopy(grid[after_i]); grid[after_i].addnext(g); grid=tbl.tblGrid.gridCol_lst
+        # 差額列ヘッダー（2段目）を書き換え
+        hdr=tbl.tr_lst[0].tc_lst
+        for ci,txt in [(3,"前期差額"),(5,"計画差額"),(8,"前期差額"),(10,"計画差額")]:
+            hdr[ci].txBody.p_lst[1].r_lst[0].t.text=txt if False else txt
+    widths=[1.95,0.93,0.58,0.78,0.58,0.78,0.78,0.58,0.78,0.58,0.78,0.55]
+    for c,wd in zip(t.columns,widths): c.width=Emu(int(wd*914400))
+    gf.left=Emu(int(0.18*914400)); gf.width=Emu(int(sum(widths)*914400))
+    for r in t.rows: r.height=Emu(329184)   # 0.36in x10行 = 3.6in
+    rows=OFF[:6]+[T6,"キョウワ",T]
+    for ri,o in enumerate(rows,start=1):
+        total=(o in (T,T6))
         sa=O[o]["sales"][period]; gp=O[o]["gp"][period]
-        vals=[names.get(o,"合　計"),f0(sa["act"]),pct(sa["act"],sa["prior"]),pct(sa["act"],sa["plan"]),f0(gp["act"]),pct(gp["act"],gp["prior"]),pct(gp["act"],gp["plan"]),pct(gp["act"],sa["act"])]
-        set_cell(t.cell(ri,0),vals[0]); set_cell(t.cell(ri,1),vals[1]); set_cell(t.cell(ri,4),vals[4])
-        for ci in [2,3,5,6]:
-            set_cell(t.cell(ri,ci),p1(vals[ci]),None if total else ratio_color(vals[ci]))
-        set_cell(t.cell(ri,7),p1(vals[7]))
+        label={T6:"タカハシ包装合計",T:"タカハシ包装＋キョウワ合計"}.get(o,names.get(o))
+        def trio(d):
+            return [(pct(d["act"],d["prior"]),d["act"]-d["prior"]),(pct(d["act"],d["plan"]),d["act"]-d["plan"])]
+        set_cell(t.cell(ri,0),label); set_cell(t.cell(ri,1),f0(sa["act"])); set_cell(t.cell(ri,6),f0(gp["act"]))
+        for base,d in ((2,sa),(7,gp)):
+            for k,(rate_,diff) in enumerate(trio(d)):
+                col=None if total else ratio_color(rate_)
+                set_cell(t.cell(ri,base+2*k),p1(rate_),col); set_cell(t.cell(ri,base+2*k+1),sgn(diff),col)
+        set_cell(t.cell(ri,11),p1(pct(gp["act"],sa["act"])))
+    for tr in tbl.tr_lst:   # セル余白を詰め、率・差額の文字を9ptに
+        for ci,tc in enumerate(tr.tc_lst):
+            tc.tcPr.set("marL","22860"); tc.tcPr.set("marR","22860")
+            if ci in (2,3,4,5,7,8,9,10):
+                for p_ in tc.txBody.p_lst:
+                    for r_ in p_.r_lst: r_.get_or_add_rPr().set("sz","900")
 s=shapes_by_name(sl[2]); set_text(s["TextBox 5"],FOOT)
 set_text(s["TextBox 2"],"営業所別　9月単月実績　～売上・粗利益額～")
 fill_table(sl[2],"m")
@@ -135,21 +190,21 @@ set_text(s["TextBox 7"],f"9月単月の粗利は{sgn(tot_gpdiff)}千円。境港
 # ---------- slide 8 narrative
 s=shapes_by_name(sl[7]); set_text(s["TextBox 5"],FOOT)
 set_text(s["TextBox 8"],f"第51期通期は粗利益額 前期比{p1(yoy(T,'gp','ytd'))}・計画比{p1(vsp(T,'gp','ytd'))}で増益着地")
-set_text(s["TextBox 9"],f"・ 9月粗利益額 {f0(m_gp)}千円（前期比{p1(yoy(T,'gp','m'))}・計画比{p1(vsp(T,'gp','m'))}）。売上は前期比{p1(yoy(T,'sales','m'))}・計画比{p1(vsp(T,'sales','m'))}と横ばいで、増益は粗利率改善による")
+set_text(s["TextBox 9"],f"・ 9月粗利益額{f0(m_gp)}千円（前期比{p1(yoy(T,'gp','m'))}・計画比{p1(vsp(T,'gp','m'))}）。売上は横ばい、増益は粗利率改善による")
 set_text(s["TextBox 10"],f"・ 通期売上{f0(y_sa)}千円（前期比{p1(yoy(T,'sales','ytd'))}）・粗利{f0(y_gp)}千円（{p1(yoy(T,'gp','ytd'))}）。下期粗利は前期比{p1(yoy(T,'gp','h2'))}と上期から加速")
 set_text(s["TextBox 11"],f"・ 粗利率は単月{p1(rate(T,'m'))}（前期{p1(rate(T,'m','prior'))}）・下期{p1(rate(T,'h2'))}（{p1(rate(T,'h2','prior'))}）・通期{p1(rate(T,'ytd'))}（{p1(rate(T,'ytd','prior'))}）と全期間で改善")
 set_text(s["TextBox 14"],"【警戒】境港の通期減益と、売上増でも粗利率が低下した部門")
-set_text(s["TextBox 15"],f"・ 境港は9月粗利前期比{p1(yoy('境港','gp','m'))}（前期の岡野農場向け機械大口の反動）。通期も売上{p1(yoy('境港','sales','ytd'))}・粗利{p1(yoy('境港','gp','ytd'))}・計画比{p1(vsp('境港','gp','ytd'))}と唯一の減収減益")
+set_text(s["TextBox 15"],f"・ 境港は9月粗利{p1(yoy('境港','gp','m'))}（前期機械大口の反動）。通期も粗利{p1(yoy('境港','gp','ytd'))}・計画比{p1(vsp('境港','gp','ytd'))}と唯一の減益")
 set_text(s["TextBox 16"],f"・ 全社粗利前期比は7月{tr['7月']['gp_yoy']:.1f}%→8月{tr['8月']['gp_yoy']:.1f}%→9月{yoy(T,'gp','m'):.1f}%。石見は粗利{p1(yoy('石見','gp','m'))}へ回復も売上計画比{p1(vsp('石見','sales','m'))}と未達")
 set_text(s["TextBox 17"],f"・ 水産部は9月粗利率{p1(rate('水産部','m'))}（前期{p1(rate('水産部','m','prior'))}）、キョウワは通期粗利{p1(yoy('キョウワ','gp','ytd'))}。売上増でも利幅が落ちる先は値決めを点検")
 set_text(s["TextBox 20"],"営業所別の実態　～9月の増益はどこから来たか～")
-set_text(s["TextBox 21"],f"・ 広域：粗利前期比{p1(yoy('広域','gp','m'))}（リンガーハット東京本社 粗利7,652千円・前期4,401）、松江：{p1(yoy('松江','gp','m'))}（コクヨー・岡田商店・ヤマダヤ）")
-set_text(s["TextBox 22"],f"・ 石見{sgn(gpdiff['石見'])}（キヌヤ+1,667）、下関{sgn(gpdiff['下関'])}（フクシン・もずくセンター）。境港を除く6部門が増益、粗利率も全社で{rate(T,'m')-rate(T,'m','prior'):+.1f}pt")
+set_text(s["TextBox 21"],f"・ 広域：粗利{p1(yoy('広域','gp','m'))}（リンガーハット東京本社{sgn(3250)}）、松江：{p1(yoy('松江','gp','m'))}（コクヨー・岡田商店等）")
+set_text(s["TextBox 22"],f"・ 石見{sgn(gpdiff['石見'])}（キヌヤ）、下関{sgn(gpdiff['下関'])}（フクシン等）。境港除く6部門が増益、粗利率も全社で{rate(T,'m')-rate(T,'m','prior'):+.1f}pt")
 set_text(s["TextBox 24"],f"第51期は粗利益額{f0(y_gp)}千円で増益着地。第52期は境港の立て直しと、価格改定効果一巡後の粗利率維持が焦点")
 
 import unicodedata
 def w(t): return sum(1 if unicodedata.east_asian_width(c) in "FWA" else 0.5 for c in t)
-limits={(1,"TextBox 8"):56,(1,"TextBox 9"):56,(1,"TextBox 12"):56,(1,"TextBox 7"):45,(1,"TextBox 4"):48,(1,"TextBox 13"):60,(8,"TextBox 9"):62,(8,"TextBox 10"):62,(8,"TextBox 11"):62,(8,"TextBox 15"):62,(8,"TextBox 16"):62,(8,"TextBox 17"):62,(8,"TextBox 21"):62,(8,"TextBox 22"):62,(8,"TextBox 24"):64,(8,"TextBox 8"):48,(8,"TextBox 14"):48,(3,"TextBox 7"):130,(4,"TextBox 7"):130,(5,"TextBox 7"):130,(6,"TextBox 7"):130,(7,"TextBox 7"):130,(2,"TextBox 3"):80}
+limits={(1,"TextBox 8"):56,(1,"TextBox 9"):56,(1,"TextBox 12"):56,(1,"TextBox 7"):52,(1,"TextBox 4"):48,(1,"TextBox 13"):60,(8,"TextBox 9"):56,(8,"TextBox 10"):56,(8,"TextBox 11"):56,(8,"TextBox 15"):56,(8,"TextBox 16"):56,(8,"TextBox 17"):56,(8,"TextBox 21"):56,(8,"TextBox 22"):56,(8,"TextBox 24"):64,(8,"TextBox 8"):48,(8,"TextBox 14"):48,(3,"TextBox 7"):130,(4,"TextBox 7"):130,(5,"TextBox 7"):130,(6,"TextBox 7"):130,(7,"TextBox 7"):130,(2,"TextBox 3"):80}
 for (si,nm),lim in limits.items():
     t=shapes_by_name(sl[si-1])[nm].text_frame.text
     flag="OK " if w(t)<=lim else "OVER"
