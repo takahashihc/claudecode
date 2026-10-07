@@ -29,7 +29,7 @@ for sheet in sys.argv[3:]:
         waste=(ss*n-smax)/(ss*n)+(gs*n-gmax)/(gs*n)
         if best is None or waste<best[0]-1e-9: best=(waste,n,ss,gs)
     _,n,ss,gs=best
-    FIX={"【グラフ】タカハシ包装合計":(8,500000.0,125000.0),"【グラフ】グループ合計":(8,500000.0,125000.0)}   # 読みやすい固定目盛り（両グラフ共通）
+    FIX={"【グラフ】タカハシ包装合計":(8,500000.0,150000.0),"【グラフ】グループ合計":(8,500000.0,150000.0)}   # 読みやすい固定目盛り（両グラフ共通）
     if sheet in FIX:
         n,ss,gs=FIX[sheet]; assert ss*n>=smax and gs*n>=gmax
     for ax,step in ((dg.getYAxis(),ss),(dg.getSecondaryYAxis(),gs)):
