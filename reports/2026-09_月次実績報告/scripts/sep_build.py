@@ -18,6 +18,7 @@ def yoy(o,m,p): return pct(get(o,m,p,"act"),get(o,m,p,"prior"))
 def vsp(o,m,p): return pct(get(o,m,p,"act"),get(o,m,p,"plan"))
 def rate(o,p,k="act"): return pct(get(o,"gp",p,k),get(o,"sales",p,k))
 T="合計"
+PV=json.load(open(S+"pricevol2_sep.json")); PVT=PV["タカハシ包装(6)"]; PVI=PV["石見"]
 T6="タカハシ包装"   # 6営業所・部（キョウワを含まない）
 O[T6]={m:{p:{k:sum(O[o][m][p][k] for o in OFF[:6]) for k in ["act","plan","prior"]} for p in ["m","h2","ytd"]} for m in ["sales","gp"]}
 # ---------- key figures
@@ -75,8 +76,9 @@ set_text(s["TextBox 4"],"第51期下期 9月実績（第51期通期確定）　�
 set_text(s["TextBox 7"],f"粗利益額（キョウワ含む）: 9月 {f0(m_gp)}千円（前期比{p1(yoy(T,'gp','m'))}・計画比{p1(vsp(T,'gp','m'))}）")
 set_text(s["TextBox 8"],f"・ 第51期通期は売上{p1(yoy(T,'sales','ytd'))}・粗利{p1(yoy(T,'gp','ytd'))}（計画比{p1(vsp(T,'gp','ytd'))}）で増収増益着地。下期粗利は前期比{p1(yoy(T,'gp','h2'))}")
 set_text(s["TextBox 9"],f"・ 9月は境港{sgn(gpdiff['境港'])}（前期機械大口の反動）を {joinc(plus,3)} が吸収し増益")
-set_text(s["TextBox 11"],"【警戒】境港の通期減益と水産部・キョウワの粗利率低下")
-set_text(s["TextBox 12"],f"・ 境港は通期粗利前期比{p1(yoy('境港','gp','ytd'))}・計画比{p1(vsp('境港','gp','ytd'))}と唯一の減益。水産部は9月粗利率{p1(rate('水産部','m'))}（前期{p1(rate('水産部','m','prior'))}）と低下")
+for nm in ("Rectangle 10","TextBox 11","TextBox 12"):
+    el=s[nm]._element; el.getparent().remove(el)
+s["TextBox 13"].top=Emu(int(4.35*914400)); s["TextBox 14"].top=Emu(int(4.68*914400))
 set_text(s["TextBox 13"],"分析期間: 単月（9月）／下期（4〜9月）／期初来累計（令和7年10月〜令和8年9月＝第51期通期）")
 set_text(s["TextBox 14"],"作成日: 令和8年10月7日　　資料作成者: 高橋将史")
 # ---------- slide 2 (KPI cards)
@@ -193,18 +195,18 @@ set_text(s["TextBox 8"],f"第51期通期は粗利益額 前期比{p1(yoy(T,'gp',
 set_text(s["TextBox 9"],f"・ 9月粗利益額{f0(m_gp)}千円（前期比{p1(yoy(T,'gp','m'))}・計画比{p1(vsp(T,'gp','m'))}）。売上は横ばい、増益は粗利率改善による")
 set_text(s["TextBox 10"],f"・ 通期売上{f0(y_sa)}千円（前期比{p1(yoy(T,'sales','ytd'))}）・粗利{f0(y_gp)}千円（{p1(yoy(T,'gp','ytd'))}）。下期粗利は前期比{p1(yoy(T,'gp','h2'))}と上期から加速")
 set_text(s["TextBox 11"],f"・ 粗利率は単月{p1(rate(T,'m'))}（前期{p1(rate(T,'m','prior'))}）・下期{p1(rate(T,'h2'))}（{p1(rate(T,'h2','prior'))}）・通期{p1(rate(T,'ytd'))}（{p1(rate(T,'ytd','prior'))}）と全期間で改善")
-set_text(s["TextBox 14"],"【警戒】境港の通期減益と、売上増でも粗利率が低下した部門")
-set_text(s["TextBox 15"],f"・ 境港は9月粗利{p1(yoy('境港','gp','m'))}（前期機械大口の反動）。通期も粗利{p1(yoy('境港','gp','ytd'))}・計画比{p1(vsp('境港','gp','ytd'))}と唯一の減益")
-set_text(s["TextBox 16"],f"・ 全社粗利前期比は7月{tr['7月']['gp_yoy']:.1f}%→8月{tr['8月']['gp_yoy']:.1f}%→9月{yoy(T,'gp','m'):.1f}%。石見は粗利{p1(yoy('石見','gp','m'))}へ回復も売上計画比{p1(vsp('石見','sales','m'))}と未達")
-set_text(s["TextBox 17"],f"・ 水産部は9月粗利率{p1(rate('水産部','m'))}（前期{p1(rate('水産部','m','prior'))}）、キョウワは通期粗利{p1(yoy('キョウワ','gp','ytd'))}。売上増でも利幅が落ちる先は値決めを点検")
+set_text(s["TextBox 14"],"【警戒】価格改定の検証　～数量の落ち込みはないか～")
+set_text(s["TextBox 15"],f"・ 継続取扱品の単価は前年比{PVT['price_idx']-100:+.1f}%、数量は{PVT['qty_idx']:.1f}%。増益は価格改定の効果が主因")
+set_text(s["TextBox 16"],f"・ 石見は単価{PVI['price_idx']-100:+.1f}%に対し数量{PVI['qty_idx']:.1f}%と減少。スチロール成形品の積水化成品西部向け等")
+set_text(s["TextBox 17"],f"・ 継続取引先{PVT['cust']['n_both']}先中{PVT['cust']['down']}先は、値上げ後も売上が前年比10%超減。数量を要確認")
 set_text(s["TextBox 20"],"営業所別の実態　～9月の増益はどこから来たか～")
 set_text(s["TextBox 21"],f"・ 広域：粗利{p1(yoy('広域','gp','m'))}（リンガーハット東京本社{sgn(3250)}）、松江：{p1(yoy('松江','gp','m'))}（コクヨー・岡田商店等）")
 set_text(s["TextBox 22"],f"・ 石見{sgn(gpdiff['石見'])}（キヌヤ）、下関{sgn(gpdiff['下関'])}（フクシン等）。境港除く6部門が増益、粗利率も全社で{rate(T,'m')-rate(T,'m','prior'):+.1f}pt")
-set_text(s["TextBox 24"],f"第51期は粗利益額{f0(y_gp)}千円で増益着地。第52期は境港の立て直しと、価格改定効果一巡後の粗利率維持が焦点")
+set_text(s["TextBox 24"],f"第51期は粗利益額{f0(y_gp)}千円で増益着地。第52期は価格改定後の数量（特に石見）の確認と粗利率の維持が焦点")
 
 import unicodedata
 def w(t): return sum(1 if unicodedata.east_asian_width(c) in "FWA" else 0.5 for c in t)
-limits={(1,"TextBox 8"):56,(1,"TextBox 9"):56,(1,"TextBox 12"):56,(1,"TextBox 7"):52,(1,"TextBox 4"):48,(1,"TextBox 13"):60,(8,"TextBox 9"):56,(8,"TextBox 10"):56,(8,"TextBox 11"):56,(8,"TextBox 15"):56,(8,"TextBox 16"):56,(8,"TextBox 17"):56,(8,"TextBox 21"):56,(8,"TextBox 22"):56,(8,"TextBox 24"):64,(8,"TextBox 8"):48,(8,"TextBox 14"):48,(3,"TextBox 7"):130,(4,"TextBox 7"):130,(5,"TextBox 7"):130,(6,"TextBox 7"):130,(7,"TextBox 7"):130,(2,"TextBox 3"):80}
+limits={(1,"TextBox 8"):56,(1,"TextBox 9"):56,(1,"TextBox 7"):52,(1,"TextBox 4"):48,(1,"TextBox 13"):60,(8,"TextBox 9"):56,(8,"TextBox 10"):56,(8,"TextBox 11"):56,(8,"TextBox 15"):56,(8,"TextBox 16"):56,(8,"TextBox 17"):56,(8,"TextBox 21"):56,(8,"TextBox 22"):56,(8,"TextBox 24"):64,(8,"TextBox 14"):48,(8,"TextBox 8"):48,(8,"TextBox 14"):48,(3,"TextBox 7"):130,(4,"TextBox 7"):130,(5,"TextBox 7"):130,(6,"TextBox 7"):130,(7,"TextBox 7"):130,(2,"TextBox 3"):80}
 for (si,nm),lim in limits.items():
     t=shapes_by_name(sl[si-1])[nm].text_frame.text
     flag="OK " if w(t)<=lim else "OVER"
