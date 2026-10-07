@@ -32,3 +32,4 @@
 ## スクリプト
 sep_compute.py（集計）→ sep_gen_excel.py（営業所別・会議資料・第51期実績）→ fix_office.py / fix_suisan.py →
 sep_gen_excel2.py（得意先別・仕入先）→ sep_nenkei_values.py + sep_uno_nenkei.py（年計表）→ sep_build.py（PPTX）
+- 第51期下期下関営業所担当者別実績.xlsx は、社長が自治体「合計」セル（全体/機械/包装資材 K82・R82）の書式を変更した版（10/7受領）に差し替え。値は生成版と同一。
