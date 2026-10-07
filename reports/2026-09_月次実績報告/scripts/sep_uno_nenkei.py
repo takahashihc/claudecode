@@ -26,6 +26,10 @@ for shname,d in vals.items():
         if v=="2026/8": c7=c
         if v=="2026/9": c8=c
         if c7 is not None and c8 is not None: break
+    mcols={}
+    for c in range(0,300):
+        v=sh.getCellByPosition(c,5).getString()
+        if v in ("2026/4","2026/5","2026/6","2026/7","2026/8"): mcols[v]=c
     cur=sh.createCursor(); cur.gotoEndOfUsedArea(False); nrows=cur.RangeAddress.EndRow+1
     block=None
     for r in range(3,nrows):
@@ -38,8 +42,12 @@ for shname,d in vals.items():
             src=cell7.getRangeAddress(); dst=cell8.getCellAddress()
             sh.copyRange(dst,src); log.append(f"{shname} r{r} {block}/{lab}: formula {cell7.getFormula()} -> {cell8.getFormula()}")
         elif t=="VALUE":
-            if block in d and lab=="当月":
-                cell8.setValue(float(d[block])); log.append(f"{shname} r{r} {block}/{lab}: value {d[block]}")
+            if block in d["2026/9"] and lab=="当月":
+                cell8.setValue(float(d["2026/9"][block])); log.append(f"{shname} r{r} {block}/{lab}: value {d['2026/9'][block]}")
+                for mon,cc in mcols.items():
+                    cm=sh.getCellByPosition(cc,r); old=cm.getValue()
+                    if cm.getType().value=="VALUE" and abs(old-float(d[mon][block]))>0.0005:
+                        cm.setValue(float(d[mon][block])); log.append(f"{shname} r{r} {block}/{mon}: {old} -> {d[mon][block]}")
             elif lab=="年計":
                 # 年計 as value -> write rolling 12-month SUM formula
                 from_col=c8-11

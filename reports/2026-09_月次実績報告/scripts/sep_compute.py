@@ -46,7 +46,8 @@ data["キョウワ"]={"prior":ky("2．"),"plan":ky("4．"),"act":ky("7．")}
 for o in files:
     print(f"AUG check {o}: raw {aug_raw[o]['sales']:.3f}/{aug_raw[o]['gp']:.3f} vs file {data[o]['act']['sales'][M-1]:.3f}/{data[o]['act']['gp'][M-1]:.3f}")
 for o in files:
-    data[o]["act"]["sales"][M]=sep[o]["sales"]; data[o]["act"]["gp"][M]=sep[o]["gp"]
+    for i in range(6):
+        data[o]["act"]["sales"][i]=sum(raw[c]["sales"][i] for c in codes[o] if c in raw); data[o]["act"]["gp"][i]=sum(raw[c]["gp"][i] for c in codes[o] if c in raw)
 print("Kyowa file act Apr-Aug:",data["キョウワ"]["act"]["sales"][:5],"raw 0502:",raw["0502"]["sales"])
 for i in range(6):
     data["キョウワ"]["act"]["sales"][i]=raw["0502"]["sales"][i]; data["キョウワ"]["act"]["gp"][i]=raw["0502"]["gp"][i]
@@ -74,7 +75,8 @@ for o in OFF:
     res={}
     for m in ["sales","gp"]:
         mth={k:data[o][k][m][M] for k in ["act","plan","prior"]}
-        h2={k:h2_48[o][m][k]+mth[k] for k in ["act","plan","prior"]}
+        h2={k:sum(data[o][k][m][0:6]) for k in ["act","plan","prior"]}
+        if abs(h2_48[o][m]["act"]+mth["act"]-h2["act"])>0.5: print(f"  下期累計差替 {o} {m}: 8月会議資料ベース {h2_48[o][m]['act']+mth['act']:.1f} -> 最新 {h2['act']:.1f} ({h2['act']-h2_48[o][m]['act']-mth['act']:+.1f})")
         ytd={k:h2[k]+h1[o][m][k] for k in ["act","plan","prior"]}
         res[m]={"m":mth,"h2":h2,"ytd":ytd}
     out["offices"][o]=res

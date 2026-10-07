@@ -5,15 +5,13 @@ D=json.load(open(S+"sep_final.json"))["offices"]
 ws=openpyxl.load_workbook(S+"sep/2609担当者別売上粗利益実績.xlsx",data_only=True).worksheets[0]; R={}
 for row in ws.iter_rows(min_row=2,values_only=True):
     if row[0] is None: continue
-    R[str(row[0]).zfill(4)]={"sales":float(row[7] or 0),"gp":float(row[13] or 0)}
-def m(o,k): return D[o][k]["m"]["act"]
-tosu={k:sum(R[c][k] for c in ["0042","0047","0046"]) for k in ["sales","gp"]}
-tokyo={k:sum(R[c][k] for c in ["0550","0552"]) for k in ["sales","gp"]}
-sales={"石見":m("石見","sales"),"下関":m("下関","sales"),"松江":m("松江","sales"),"鳥栖・静岡":tosu["sales"],"境港":m("境港","sales"),"東京：②":tokyo["sales"],"水産部":m("水産部","sales"),"キョウワ":round(m("キョウワ","sales"))}
-sales["境港+東京"]=sales["境港"]+sales["東京：②"]; sales["営業（境港除）"]=sales["石見"]+sales["下関"]+sales["松江"]+sales["鳥栖・静岡"]
-sales["合計旧タカハシ包装"]=sales["営業（境港除）"]+sales["水産部"]; sales["合計（境港含）"]=sales["合計旧タカハシ包装"]+sales["境港+東京"]
-gp={"石見":m("石見","gp"),"下関":m("下関","gp"),"松江(内JF抜き）":m("松江","gp"),"鳥栖＋東京①":tosu["gp"],"東京":tokyo["gp"],"境港":m("境港","gp"),"水産部":m("水産部","gp"),"キョウワ":round(m("キョウワ","gp"))}
-gp["境港＋東京"]=gp["境港"]+gp["東京"]; gp["営業（旧フクダ除）"]=gp["石見"]+gp["下関"]+gp["松江(内JF抜き）"]+gp["鳥栖＋東京①"]+gp["東京"]
-gp["旧タカハシ包装合計"]=gp["営業（旧フクダ除）"]+gp["水産部"]; gp["境港含む"]=gp["旧タカハシ包装合計"]+gp["境港"]
-json.dump({"年計表売上DATA":{k:round(v,3) for k,v in sales.items()},"年計表粗利益DATA":{k:round(v,3) for k,v in gp.items()}},open(S+"scripts/nenkei_sep_values.json","w"),ensure_ascii=False,indent=1)
-print("SALES:",{k:round(v,1) for k,v in sales.items()}); print("GP:",{k:round(v,1) for k,v in gp.items()})
+    R[str(row[0]).zfill(4)]={"sales":[float(x or 0) for x in row[2:8]],"gp":[float(x or 0) for x in row[8:14]]}
+codes={"石見":["0011","0012","0013","0014","0015","0016","0018","0019","0020"],"下関":["0021","0024","0025","0026","0027","0028","0029"],"松江":["0032","0033","0034","0035","0039"],"広域":["0042","0045","0046","0047","0550","0552"],"境港":["0903","0904","0909","0910","0911","0914","0918","0919","0930"],"水産部":["0010","0017","0031","0038","0101","0102","0104","0106"]}
+def g(cs,k,i): return sum(R[c][k][i] for c in cs if c in R)
+out={"年計表売上DATA":{},"年計表粗利益DATA":{}}
+for i in range(6):
+    sales={"石見":g(codes["石見"],"sales",i),"下関":g(codes["下関"],"sales",i),"松江":g(codes["松江"],"sales",i),"鳥栖・静岡":g(["0042","0047","0046"],"sales",i),"境港":g(codes["境港"],"sales",i),"東京：②":g(["0550","0552"],"sales",i),"水産部":g(codes["水産部"],"sales",i),"キョウワ":round(g(["0502"],"sales",i))}
+    gp={"石見":g(codes["石見"],"gp",i),"下関":g(codes["下関"],"gp",i),"松江(内JF抜き）":g(codes["松江"],"gp",i),"鳥栖＋東京①":g(["0042","0047","0046"],"gp",i),"東京":g(["0550","0552"],"gp",i),"境港":g(codes["境港"],"gp",i),"水産部":g(codes["水産部"],"gp",i),"キョウワ":round(g(["0502"],"gp",i))}
+    out["年計表売上DATA"][f"2026/{i+4}"]={k:round(v,3) for k,v in sales.items()}; out["年計表粗利益DATA"][f"2026/{i+4}"]={k:round(v,3) for k,v in gp.items()}
+json.dump(out,open(S+"scripts/nenkei_sep_values.json","w"),ensure_ascii=False,indent=1)
+print({k:v["2026/9"] for k,v in out.items()})

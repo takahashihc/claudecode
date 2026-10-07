@@ -56,13 +56,6 @@ def parse_office(o):
             res[sh][SEC_KEYS[k]]=d
     return res
 OFFICE={o:parse_office(o) for o in files}
-# ---- 8月実績(ファイル) vs 最新RAW 8月列 の差異チェック
-for o in files:
-    for sh,src in [("全体",RAW),("機械",RAWM)]:
-        for code,v in OFFICE[o][sh]["act"].items():
-            if not re.match(r"\d{4}",code): continue
-            fs,fg=v["sales"][M-1],v["gp"][M-1]; rs,rg=raw(code,"sales",M-1,src),raw(code,"gp",M-1,src)
-            if abs(fs-rs)>0.01 or abs(fg-rg)>0.01: flags.append(f"8月差異 {o} {sh} {code}: ファイル {fs:.3f}/{fg:.3f} vs 最新RAW {rs:.3f}/{rg:.3f}")
 wk=openpyxl.load_workbook(CALC+files["広域"],data_only=True)["キョウワ"]
 def kyowa_rows():
     secs=sec_start(wk); order=sorted(secs.items(),key=lambda x:x[1]); res={}
@@ -78,15 +71,13 @@ def kyowa(key,kind,m=M):
     k={"y2024":"1","y2025":"2","plan":"4","act":"7"}[key]
     if key=="act": return round(raw("0502",kind,m))
     return KY[k][kind][m]
-def act(o,sh,code,kind,m):
-    if m==M: return raw(code,kind,m,RAWM if sh=="機械" else RAW)
-    return OFFICE[o][sh]["act"].get(code,{"sales":[0]*6,"gp":[0]*6})[kind][m]
+CODES={"石見":["0011","0012","0013","0014","0015","0016","0018","0019","0020"],"下関":["0021","0024","0025","0026","0027","0028","0029"],"松江":["0032","0033","0034","0035","0039"],"広域":["0042","0045","0046","0047","0550","0552"],"境港":["0903","0904","0909","0910","0911","0914","0918","0919","0930"],"水産部":["0010","0017","0031","0038","0101","0102","0104","0106"]}
+def act(o,sh,code,kind,m):  # 実績は全月とも最新RAW
+    return raw(code,kind,m,RAWM if sh=="機械" else RAW)
 def hist(o,sh,key,code,kind,m): return OFFICE[o][sh][key].get(code,{"sales":[0]*6,"gp":[0]*6})[kind][m]
 def codes_in(o,sh="全体"): return [k for k in OFFICE[o][sh]["act"] if re.match(r"\d{4}",k)]
 def office_total(o,sh,key,kind,m):
-    if key=="act":
-        if m==M: return sum(act(o,sh,c,kind,m) for c in codes_in(o,sh))
-        return OFFICE[o][sh]["act"]["合計"][kind][m]
+    if key=="act": return sum(act(o,sh,c,kind,m) for c in sorted(set(codes_in(o,sh))|set(CODES[o])))
     return OFFICE[o][sh][key]["合計"][kind][m]
 # ======================= 1. 営業所別ファイル 9月列
 def translate_fill(ws,r,cols=(MC,GC,RC)):
@@ -108,7 +99,10 @@ def update_office(o):
                 lab=str(c).strip(); m=re.match(r"(\d{4})",lab)
                 if k=="7" and sh in ("全体","機械") and m and not isinstance(ws.cell(r,MC-1).value,str):
                     code=m.group(1); src=RAWM if sh=="機械" else RAW
-                    ws.cell(r,MC).value=raw(code,"sales",M,src); ws.cell(r,GC).value=raw(code,"gp",M,src)
+                    for mm in range(6):  # 4〜9月を最新RAWで上書き
+                        if mm<M and abs((ws.cell(r,5+mm).value or 0)-raw(code,"sales",mm,src))<0.0005 and abs((ws.cell(r,12+mm).value or 0)-raw(code,"gp",mm,src))<0.0005: continue
+                        if mm<M: flags.append(f"差替 {o} {sh} {code} {mm+4}月: 売上 {ws.cell(r,5+mm).value}->{raw(code,'sales',mm,src)} 粗利 {ws.cell(r,12+mm).value}->{raw(code,'gp',mm,src)}")
+                        ws.cell(r,5+mm).value=raw(code,"sales",mm,src); ws.cell(r,12+mm).value=raw(code,"gp",mm,src)
                     for cc in (MC,GC): ws.cell(r,cc).number_format=ws.cell(r,cc-1).number_format
                 if k=="7" and lab=="内リンガーハット":
                     if sh=="全体": ws.cell(r,MC).value=round(ringer["sales"],3); ws.cell(r,GC).value=round(ringer["gp"],3)
@@ -122,7 +116,8 @@ def update_office(o):
             for r in range(st+1,en):
                 c=ws.cell(r,3).value
                 if c and "税抜" in str(c):
-                    if k=="7": ws.cell(r,MC).value=round(raw("0502","sales")); ws.cell(r,GC).value=round(raw("0502","gp"))
+                    if k=="7":
+                        for mm in range(6): ws.cell(r,5+mm).value=round(raw("0502","sales",mm)); ws.cell(r,12+mm).value=round(raw("0502","gp",mm))
                     translate_fill(ws,r)
     wb.save(OUT+files[o]); print("saved office",o)
 for o in files: update_office(o)
@@ -179,7 +174,6 @@ def fill_kaigi_sheet(ws,months,label_m,label_h,check=False):
             flags.append(f"営業会議資料 row {r}: 未対応ラベル {d}")
 def make_kaigi():
     wb=openpyxl.load_workbook(W+"【営業会議資料】令和8年8月実績.xlsx")
-    fill_kaigi_sheet(wb["単月"],[M-1],"","",check=True)   # 8月の既存値を再現できるか検証
     fill_kaigi_sheet(wb["単月"],[M],"9月","1．単月実績")
     fill_kaigi_sheet(wb["下期累計"],list(range(0,M+1)),"4〜9月","2．下期累計実績（4〜9月）")
     wb.save(OUT+"【営業会議資料】令和8年9月実績.xlsx"); print("saved kaigi")
@@ -212,6 +206,20 @@ def make_jisseki():
     v1=per("水産部","0104"); v2=per("水産部","0106"); put(43,tuple(a+b for a,b in zip(v1,v2)))
     put(44,tot("水産部","機械"))
     put(50,(kyowa("y2024","sales"),kyowa("y2025","sales"),kyowa("plan","sales"),kyowa("act","sales"),kyowa("y2024","gp"),kyowa("y2025","gp"),kyowa("plan","gp"),kyowa("act","gp")))
+    # BACKDATA4〜8月の実績列(L,S)を最新RAWで差替
+    ROWMAP=[(5,"石見","全体",None),(8,"石見","機械",None),(9,"石見","全体","0020"),(10,"下関","全体",None),(13,"下関","機械",None),(14,"下関","全体","0028"),(15,"下関","全体","0027"),(16,"松江","全体",None),(19,"松江","機械",None),(20,"松江","全体","0035"),(21,"広域","全体",None),(23,"広域","機械",None),(30,"境港","全体",None),(33,"境港","機械",None),(34,"境港","全体","0930"),(35,"境港","全体","0918"),(41,"水産部","全体",None),(43,"水産部","全体","荷役"),(44,"水産部","機械",None),(50,"キョウワ","全体",None)]
+    for mm in range(5):
+        wsb=wb[f"BACKDATA{mm+4}月"]
+        for r,o,sh,code in ROWMAP:
+            if o=="キョウワ": es,eg=kyowa("act","sales",mm),kyowa("act","gp",mm)
+            elif code=="荷役": es=act("水産部","全体","0104","sales",mm)+act("水産部","全体","0106","sales",mm); eg=act("水産部","全体","0104","gp",mm)+act("水産部","全体","0106","gp",mm)
+            elif code: es,eg=act(o,sh,code,"sales",mm),act(o,sh,code,"gp",mm)
+            else: es,eg=office_total(o,sh,"act","sales",mm),office_total(o,sh,"act","gp",mm)
+            fs,fg=wsb.cell(r,12).value,wsb.cell(r,19).value
+            if not isinstance(fs,(int,float)) or not isinstance(fg,(int,float)): continue
+            if abs(fs-es)>0.0005 or abs(fg-eg)>0.0005:
+                flags.append(f"第51期 BACKDATA{mm+4}月 r{r} {o}{sh}{code or ''}: 売上 {fs}->{es:.3f} 粗利 {fg}->{eg:.3f}")
+                wsb.cell(r,12).value=es; wsb.cell(r,19).value=eg
     wsd=wb["下期"]; n=0
     for row in wsd.iter_rows():
         for c in row:
