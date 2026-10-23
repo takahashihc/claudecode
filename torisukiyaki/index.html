@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>鳥のすき焼きセット 通販｜土曜日も発送</title>
+<meta name="description" content="鳥のすき焼きをご自宅へ。土曜日も発送します。ご家庭用からギフトまで。">
+<style>
+:root{
+  --bg:#fffaf3; --card:#ffffff; --ink:#2b2118; --muted:#6f6254;
+  --red:#b3261e; --red-d:#8c1d17; --gold:#c8952b; --line:#eadfce; --ok:#2e7d32;
+}
+@media (prefers-color-scheme: dark){
+  :root{--bg:#1b1511; --card:#261e18; --ink:#f4ebdd; --muted:#b9ab98; --line:#3a2f26; --red:#e0584f; --red-d:#c9443c;}
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Hiragino Kaku Gothic ProN","Noto Sans JP",Meiryo,sans-serif;line-height:1.75}
+.wrap{max-width:960px;margin:0 auto;padding:0 16px}
+header.top{background:var(--red);color:#fff;text-align:center;padding:8px 16px;font-weight:700;font-size:15px}
+.hero{padding:48px 0 32px;text-align:center}
+.hero h1{font-size:clamp(28px,6vw,46px);margin:0 0 12px;line-height:1.35}
+.hero p{color:var(--muted);margin:0 auto 24px;max-width:560px}
+.badge{display:inline-block;background:var(--gold);color:#fff;border-radius:999px;padding:4px 16px;font-weight:700;margin-bottom:16px}
+.btn{display:inline-block;background:var(--red);color:#fff;border:0;border-radius:8px;padding:14px 32px;font-size:17px;font-weight:700;cursor:pointer;text-decoration:none}
+.btn:hover{background:var(--red-d)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+section{padding:32px 0}
+h2{font-size:24px;margin:0 0 20px;border-left:6px solid var(--red);padding-left:12px}
+.grid{display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(260px,1fr))}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:20px}
+.card h3{margin:0 0 4px;font-size:19px}
+.price{font-size:24px;font-weight:700;color:var(--red);margin:8px 0}
+.price small{font-size:13px;color:var(--muted);font-weight:400}
+.note{color:var(--muted);font-size:13px}
+.qty{display:flex;align-items:center;gap:8px;margin-top:12px}
+.qty button{width:36px;height:36px;border-radius:8px;border:1px solid var(--line);background:var(--bg);color:var(--ink);font-size:18px;cursor:pointer}
+.qty output{min-width:28px;text-align:center;font-weight:700}
+.ship{background:var(--card);border:2px solid var(--gold);border-radius:12px;padding:20px}
+.ship table{width:100%;border-collapse:collapse;margin-top:8px}
+.ship th,.ship td{border-bottom:1px solid var(--line);padding:8px;text-align:left}
+.ship .sat{color:var(--red);font-weight:700}
+form label{display:block;margin:14px 0 4px;font-weight:700;font-size:14px}
+form input,form select,form textarea{width:100%;padding:10px;border:1px solid var(--line);border-radius:8px;font:inherit;background:var(--card);color:var(--ink)}
+.row{display:grid;gap:12px;grid-template-columns:1fr 1fr}
+@media(max-width:560px){.row{grid-template-columns:1fr}}
+.sum{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;margin-top:16px}
+.sum .total{font-size:22px;font-weight:700;color:var(--red)}
+#msg{margin-top:12px;font-weight:700}
+footer{border-top:1px solid var(--line);padding:24px 0;color:var(--muted);font-size:13px;text-align:center}
+.todo{background:#fff3cd;color:#664d03;padding:2px 6px;border-radius:4px}
+</style>
+</head>
+<body>
+
+<header class="top">📦 土曜日も発送します！ 平日 <span id="cutoff">14:00</span> までのご注文は当日〜翌営業日に出荷</header>
+
+<div class="wrap">
+  <div class="hero">
+    <span class="badge">土曜発送対応</span>
+    <h1>とろっとやわらか、<br>鳥のすき焼きをご自宅へ。</h1>
+    <p>甘辛い割り下で、鶏肉とお野菜をじっくり。週末の食卓に間に合うよう、土曜日も発送しています。</p>
+    <a href="#order" class="btn">ご注文はこちら</a>
+  </div>
+
+  <section id="products">
+    <h2>商品ラインナップ</h2>
+    <div class="grid" id="productList"></div>
+    <p class="note">※ 商品名・価格・内容量は仮の内容です(<span class="todo">要差し替え</span>)。画像は商品写真に置き換えてください。</p>
+  </section>
+
+  <section>
+    <h2>発送について</h2>
+    <div class="ship">
+      <strong>土曜日も発送します。</strong>
+      <table>
+        <tr><th>ご注文</th><th>発送日</th></tr>
+        <tr><td>月〜金 <span class="cut"></span>まで</td><td>当日〜翌営業日</td></tr>
+        <tr class="sat"><td>金曜 <span class="cut"></span>以降〜土曜 <span id="satCut">10:00</span>まで</td><td>土曜日に発送</td></tr>
+        <tr><td>土曜 <span id="satCut2">10:00</span>以降〜日曜</td><td>翌週月曜に発送</td></tr>
+      </table>
+      <p class="note">※ 締め時間・配送エリア・日曜/祝日の扱いは運用に合わせて変更してください(<span class="todo">要確認</span>)。冷蔵・冷凍便でお届けします。</p>
+    </div>
+  </section>
+
+  <section id="order">
+    <h2>ご注文</h2>
+    <form id="orderForm" novalidate>
+      <div id="orderLines" class="note">上の商品で数量を選んでください。</div>
+      <div class="row">
+        <div><label for="name">お名前 *</label><input id="name" required autocomplete="name"></div>
+        <div><label for="tel">電話番号 *</label><input id="tel" type="tel" required autocomplete="tel"></div>
+      </div>
+      <label for="email">メールアドレス *</label><input id="email" type="email" required autocomplete="email">
+      <div class="row">
+        <div><label for="zip">郵便番号 *</label><input id="zip" required autocomplete="postal-code"></div>
+        <div><label for="addr">住所 *</label><input id="addr" required autocomplete="street-address"></div>
+      </div>
+      <div class="row">
+        <div><label for="date">お届け希望日</label><input id="date" type="date"></div>
+        <div><label for="time">時間帯</label>
+          <select id="time"><option value="">指定なし</option><option>午前中</option><option>14〜16時</option><option>16〜18時</option><option>18〜20時</option><option>19〜21時</option></select>
+        </div>
+      </div>
+      <label for="memo">備考</label><textarea id="memo" rows="3" placeholder="のし・メッセージカードなど"></textarea>
+      <div class="sum">
+        <div>商品小計：<span id="sub">¥0</span></div>
+        <div>送料：<span id="fee">¥0</span> <span class="note" id="feeNote"></span></div>
+        <div class="total">合計(税込)：<span id="total">¥0</span></div>
+      </div>
+      <p style="text-align:center"><button class="btn" id="submitBtn" type="submit" disabled>この内容で注文する</button></p>
+      <div id="msg" role="status"></div>
+    </form>
+  </section>
+</div>
+
+<footer>
+  <div class="wrap">
+    <p><span class="todo">販売業者名・所在地・電話番号・メールを記載</span>｜特定商取引法に基づく表記｜プライバシーポリシー</p>
+    <p>© <span id="yr"></span> 株式会社タカハシ包装センター</p>
+  </div>
+</footer>
+
+<script>
+// ===== 設定(ここを書き換えて運用) =====
+const CONFIG = {
+  orderEmail: "info@example.com",   // 注文メールの宛先 → 実際のアドレスに変更
+  cutoff: "14:00",                  // 平日の締め時間
+  satCutoff: "10:00",               // 土曜の締め時間
+  freeShipOver: 8000,               // 送料無料ライン
+  shipFee: 1100,                    // 送料(税込)
+  products: [
+    {id:"s2", name:"鳥のすき焼きセット 2人前", desc:"鶏もも・むね、割り下付き", price:3200},
+    {id:"s4", name:"鳥のすき焼きセット 4人前", desc:"ご家族・来客向け", price:5800},
+    {id:"gift", name:"ギフト 鳥のすき焼き 3〜4人前", desc:"化粧箱入り・のし対応", price:7200}
+  ]
+};
+// ======================================
+const yen = n => "¥" + n.toLocaleString("ja-JP");
+const cart = {};
+document.getElementById("yr").textContent = new Date().getFullYear();
+document.getElementById("cutoff").textContent = CONFIG.cutoff;
+document.querySelectorAll(".cut").forEach(e=>e.textContent=CONFIG.cutoff);
+document.getElementById("satCut").textContent = CONFIG.satCutoff;
+document.getElementById("satCut2").textContent = CONFIG.satCutoff;
+
+const list = document.getElementById("productList");
+CONFIG.products.forEach(p=>{
+  cart[p.id]=0;
+  const d=document.createElement("div"); d.className="card";
+  d.innerHTML=`<h3>${p.name}</h3><div class="note">${p.desc}</div>
+    <div class="price">${yen(p.price)} <small>税込</small></div>
+    <div class="qty"><button type="button" aria-label="減らす" data-d="-1">−</button>
+    <output id="q-${p.id}">0</output><button type="button" aria-label="増やす" data-d="1">＋</button></div>`;
+  d.querySelectorAll("button").forEach(b=>b.onclick=()=>{
+    cart[p.id]=Math.max(0,Math.min(20,cart[p.id]+Number(b.dataset.d)));
+    d.querySelector("output").textContent=cart[p.id]; render();
+  });
+  list.appendChild(d);
+});
+
+function calc(){
+  const sub=CONFIG.products.reduce((s,p)=>s+p.price*cart[p.id],0);
+  const fee=sub===0?0:(sub>=CONFIG.freeShipOver?0:CONFIG.shipFee);
+  return {sub,fee,total:sub+fee};
+}
+function render(){
+  const {sub,fee,total}=calc();
+  document.getElementById("sub").textContent=yen(sub);
+  document.getElementById("fee").textContent=yen(fee);
+  document.getElementById("total").textContent=yen(total);
+  document.getElementById("feeNote").textContent=
+    sub>0 && fee===0 ? "(送料無料)" : `(${yen(CONFIG.freeShipOver)}以上で送料無料)`;
+  const lines=CONFIG.products.filter(p=>cart[p.id]>0).map(p=>`${p.name} × ${cart[p.id]}`);
+  document.getElementById("orderLines").textContent=lines.length?lines.join(" ／ "):"上の商品で数量を選んでください。";
+  document.getElementById("submitBtn").disabled=sub===0;
+}
+render();
+
+document.getElementById("orderForm").addEventListener("submit",e=>{
+  e.preventDefault();
+  const f=id=>document.getElementById(id).value.trim();
+  const msg=document.getElementById("msg");
+  const req=["name","tel","email","zip","addr"];
+  if(req.some(id=>!f(id)) || !document.getElementById("email").validity.valid){
+    msg.style.color="var(--red)"; msg.textContent="必須項目(*)を正しく入力してください。"; return;
+  }
+  const {sub,fee,total}=calc();
+  const body=[
+    "【ご注文内容】",
+    ...CONFIG.products.filter(p=>cart[p.id]>0).map(p=>`${p.name} × ${cart[p.id]}  ${yen(p.price*cart[p.id])}`),
+    `小計 ${yen(sub)} / 送料 ${yen(fee)} / 合計 ${yen(total)}`,
+    "",
+    `お名前: ${f("name")}`, `電話: ${f("tel")}`, `メール: ${f("email")}`,
+    `〒${f("zip")} ${f("addr")}`,
+    `お届け希望日: ${f("date")||"指定なし"}  時間帯: ${f("time")||"指定なし"}`,
+    `備考: ${f("memo")||"なし"}`
+  ].join("\n");
+  location.href=`mailto:${CONFIG.orderEmail}?subject=${encodeURIComponent("【鳥のすき焼き】ご注文")}&body=${encodeURIComponent(body)}`;
+  msg.style.color="var(--ok)";
+  msg.textContent="メールソフトが開きます。送信すると注文が完了します。";
+});
+</script>
+</body>
+</html>
