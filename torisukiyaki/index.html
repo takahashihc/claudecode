@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>鳥のすき焼きセット 通販｜土曜日も発送</title>
+<title>鳥のすき焼き通販</title>
 <meta name="description" content="鳥のすき焼きをご自宅へ。土曜日も発送します。ご家庭用からギフトまで。">
 <style>
 :root{
@@ -11,8 +11,9 @@
   --red:#b3261e; --red-d:#8c1d17; --gold:#c8952b; --line:#eadfce; --ok:#2e7d32;
 }
 @media (prefers-color-scheme: dark){
-  :root{--bg:#1b1511; --card:#261e18; --ink:#f4ebdd; --muted:#b9ab98; --line:#3a2f26; --red:#e0584f; --red-d:#c9443c;}
+  :root:not([data-theme="light"]){--bg:#1b1511; --card:#261e18; --ink:#f4ebdd; --muted:#b9ab98; --line:#3a2f26; --red:#e0584f; --red-d:#c9443c;}
 }
+:root[data-theme="dark"]{--bg:#1b1511; --card:#261e18; --ink:#f4ebdd; --muted:#b9ab98; --line:#3a2f26; --red:#e0584f; --red-d:#c9443c;}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--ink);font-family:"Hiragino Kaku Gothic ProN","Noto Sans JP",Meiryo,sans-serif;line-height:1.75}
 .wrap{max-width:960px;margin:0 auto;padding:0 16px}
